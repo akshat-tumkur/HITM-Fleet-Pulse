@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HITM Fleet Pulse</title>
+    <meta
+      name="description"
+      content="Live analytics dashboard for HITM bus operations only."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero__glow hero__glow--one"></div>
+        <div class="hero__glow hero__glow--two"></div>
+        <div class="hero__content">
+          <div class="eyebrow">HITM Transport Intelligence</div>
+          <div class="hero__topline">
+            <h1>Fleet Pulse Dashboard</h1>
+            <button id="refreshButton" class="ghost-button" type="button">
+              Refresh Live Data
+            </button>
+          </div>
+          <p class="hero__copy">
+            A modern live operations view built only for HITM buses, with fleet
+            health, route comparisons, live positions, and actionable alerts.
+          </p>
+          <div class="hero__meta">
+            <div class="meta-pill">
+              <span>Source</span>
+              <strong>HypeGPS Live API</strong>
+            </div>
+            <div class="meta-pill">
+              <span>Last update</span>
+              <strong id="lastUpdated">Loading...</strong>
+            </div>
+            <div class="meta-pill">
+              <span>Mode</span>
+              <strong id="loadMode">Connecting</strong>
+            </div>
+            <div class="meta-pill">
+              <span>Auto refresh</span>
+              <strong id="refreshCountdown">60s</strong>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <section class="panel panel--wide">
+          <div class="panel__header panel__header--stack">
+            <div>
+              <p class="panel__eyebrow">Fleet Controls</p>
+              <h2>Route Filters</h2>
+            </div>
+            <div class="filter-bar">
+              <label class="filter-field">
+                <span>Status</span>
+                <select id="statusFilter">
+                  <option value="all">All statuses</option>
+                  <option value="active">Active or moving</option>
+                  <option value="parked">Parked</option>
+                  <option value="offline">Offline</option>
+                </select>
+              </label>
+              <label class="filter-field">
+                <span>Freshness</span>
+                <select id="freshnessFilter">
+                  <option value="all">Any check-in age</option>
+                  <option value="fresh">Fresh under 6 hours</option>
+                  <option value="stale">Stale over 24 hours</option>
+                </select>
+              </label>
+              <label class="filter-field">
+                <span>Route</span>
+                <select id="routeFilter">
+                  <option value="all">All HITM routes</option>
+                </select>
+              </label>
+              <button id="clearFiltersButton" class="ghost-button" type="button">
+                Clear Filters
+              </button>
+            </div>
+          </div>
+        </section>
+
+        <section class="kpi-grid" id="kpiGrid"></section>
+
+        <section class="panel panel--wide">
+          <div class="panel__header">
+            <div>
+              <p class="panel__eyebrow">Snapshot</p>
+              <h2>Operational Highlights</h2>
+            </div>
+          </div>
+          <div class="insight-grid" id="insightGrid"></div>
+        </section>
+
+        <section class="chart-grid">
+          <article class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Status Mix</p>
+                <h2>Live vs Parked vs Offline</h2>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="statusChart"></canvas></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Health Overview</p>
+                <h2>Fleet Health Distribution</h2>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="healthChart"></canvas></div>
+          </article>
+
+          <article class="panel panel--wide">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Utilization</p>
+                <h2>Top Routes by Lifetime Distance</h2>
+              </div>
+            </div>
+            <div class="chart-wrap chart-wrap--tall">
+              <canvas id="distanceChart"></canvas>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Live Operations</p>
+                <h2>Live Speed Across Visible Fleet</h2>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="speedChart"></canvas></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Idle Ranking</p>
+                <h2>Longest Idle Routes</h2>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="idleChart"></canvas></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Daily Activity</p>
+                <h2>Most Active Routes Today</h2>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="activityChart"></canvas></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Telemetry Risk</p>
+                <h2>Worst Telemetry Routes</h2>
+              </div>
+            </div>
+            <div class="chart-wrap"><canvas id="telemetryChart"></canvas></div>
+          </article>
+        </section>
+
+        <section class="map-table-grid">
+          <article class="panel panel--map">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Geography</p>
+                <h2>Live Fleet Map</h2>
+              </div>
+            </div>
+            <div id="map" aria-label="Bus location map"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel__header">
+              <div>
+                <p class="panel__eyebrow">Priority Watchlist</p>
+                <h2>Routes Needing Attention</h2>
+              </div>
+            </div>
+            <div id="watchlist" class="watchlist"></div>
+          </article>
+        </section>
+
+        <section class="table-grid">
+          <article class="panel panel--wide">
+            <div class="panel__header panel__header--stack">
+              <div>
+                <p class="panel__eyebrow">Fleet Registry</p>
+                <h2>Live Route Table</h2>
+              </div>
+              <label class="search-box">
+                <span>Search</span>
+                <input
+                  id="searchInput"
+                  type="search"
+                  placeholder="Filter HITM routes, IMEI, group..."
+                />
+              </label>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Route</th>
+                    <th>Status</th>
+                    <th>Group</th>
+                    <th>Last Seen</th>
+                    <th>Speed</th>
+                    <th>Total Km</th>
+                    <th>Signal</th>
+                    <th>SIM Expiry</th>
+                  </tr>
+                </thead>
+                <tbody id="fleetTableBody"></tbody>
+              </table>
+            </div>
+          </article>
+        </section>
+
+        <section class="footer-note">
+          <p id="statusMessage">
+            Connecting to live fleet telemetry...
+          </p>
+        </section>
+      </main>
+    </div>
+
+    <aside id="detailDrawer" class="detail-drawer" aria-hidden="true">
+      <div class="detail-drawer__scrim" id="detailDrawerScrim"></div>
+      <div class="detail-drawer__panel">
+        <div class="detail-drawer__header">
+          <div>
+            <p class="panel__eyebrow">Route Details</p>
+            <h2 id="detailTitle">Select a route</h2>
+          </div>
+          <button id="detailCloseButton" class="ghost-button" type="button">
+            Close
+          </button>
+        </div>
+        <div id="detailBody" class="detail-body">
+          <p class="detail-empty">Click a bus on the map or in the table to inspect its live details.</p>
+        </div>
+      </div>
+    </aside>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="./app.js"></script>
+  </body>
+</html>
